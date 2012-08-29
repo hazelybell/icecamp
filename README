@@ -1,0 +1,5 @@
+icecamp is a Finite-Element Ice Sheet Momentum Balance Model
+
+l1l2.F90 contains the model.
+
+CURRENTLY, documentation is nonexistent, and the code should be considered development-quality. It is also poorly commented.
