@@ -1,19 +1,3 @@
-!    Ice Sheet Momentum Balance Model 
-!    Copyright (C) Joshua Charles Campbell 2012
-
-!    This program is free software: you can redistribute it and/or modify
-!    it under the terms of the GNU General Public License as published by
-!    the Free Software Foundation, either version 3 of the License, or
-!    (at your option) any later version.
-
-!    This program is distributed in the hope that it will be useful,
-!    but WITHOUT ANY WARRANTY; without even the implied warranty of
-!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!    GNU General Public License for more details.
-
-!    You should have received a copy of the GNU General Public License
-!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 #define dp kind(1.0d0)
 ! #define LAGRANGEBC 1
 ! #define NEWTONS 1
@@ -41,18 +25,19 @@ program fem
         implicit none
         integer, parameter :: n = 40, m = 40  ! Grid size n = rows, m = cols
         real(dp), parameter :: ismip_size = 160
-        real(dp), parameter :: domain_ns = ISMIP_SIZE * (DFLOAT(m)/DFLOAT(m+1)) !m
-        real(dp), parameter :: domain_ew = ISMIP_SIZE * (DFLOAT(n)/DFLOAT(n+1)) !n
+        real(dp), parameter :: domain_ns = ismip_size * (DFLOAT(m)/DFLOAT(m+1)) !m
+        real(dp), parameter :: domain_ew = ismip_size * (DFLOAT(n)/DFLOAT(n+1)) !n
         external ismip_hom_c2
-        call rect_grid_to_triangles(m, n, domain_ns, domain_ew, ismip_hom_c2, 1)
+        call rect_grid_to_triangles(m, n, domain_ns, domain_ew, ismip_hom_c2, 1, ismip_size)
     end subroutine
 
 end program
-subroutine rect_grid_to_triangles(m, n, domain_ns, domain_ew, sub, periodic)
+subroutine rect_grid_to_triangles(m, n, domain_ns, domain_ew, sub, periodic, ismip_size)
     implicit none
     integer, intent(in) :: m, n, periodic ! periodic must be 1 or 0 anything else will surely explode
     real(dp), intent(in) :: domain_ns !m
     real(dp), intent(in) :: domain_ew !n
+    real(dp), intent(in) :: ismip_size 
     integer :: nr_p
     integer :: nr_t
     integer :: max_neighbors = 9
@@ -95,7 +80,7 @@ subroutine rect_grid_to_triangles(m, n, domain_ns, domain_ew, sub, periodic)
       end do
     end do
 
-    call sub(m, n, nr_p, p, nr_t, t, max_neighbors)
+    call sub(m, n, nr_p, p, nr_t, t, max_neighbors, ismip_size)
 end subroutine
 
 
@@ -1323,10 +1308,8 @@ subroutine fem_l1l2(nr_p, p, nr_t, t, bed, thickness, basal_traction_coeff, grou
         real(dp), intent(in) :: bX ! basal drag X
         real(dp), intent(in) :: bY ! basal drag Y
         real(dp), dimension(4), intent(out) :: cgret
-        cgret(1) = 0.2D1 * B ** (-n) * (RY - FY) * (-dble(2 ** (0.1D1 + n)) * mu ** 2 * E * (mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RX ** 2 - 0.2D1 * (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RX * FX + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * FX ** 2 + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RY ** 2 - 0.2D1 * (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RY * FY + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * FY ** 2 + 0.4D1 * (RX ** 2 - 0.
-2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * mu ** 2 * E) / (n * FX ** 2 + n * RY ** 2 + n * RX ** 2 + n * FY ** 2 + RX ** 2 + FX ** 2 + RY ** 2 + FY ** 2 - 0.2D1 * RX * FX - 0.2D1 * RY * FY - 0.2D1 * n * RX * FX - 0.2D1 * n * RY * FY)
-        cgret(2) = 0.2D1 * B ** (-n) * (RX - FX) * (-dble(2 ** (0.1D1 + n)) * mu ** 2 * E * (mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RX ** 2 - 0.2D1 * (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RX * FX + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * FX ** 2 + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RY ** 2 - 0.2D1 * (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RY * FY + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * FY ** 2 + 0.4D1 * (RX ** 2 - 0.
-2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * mu ** 2 * E) / (n * FX ** 2 + n * RY ** 2 + n * RX ** 2 + n * FY ** 2 + RX ** 2 + FX ** 2 + RY ** 2 + FY ** 2 - 0.2D1 * RX * FX - 0.2D1 * RY * FY - 0.2D1 * n * RX * FX - 0.2D1 * n * RY * FY)
+        cgret(1) = 0.2D1 * B ** (-n) * (RY - FY) * (-dble(2 ** (0.1D1 + n)) * mu ** 2 * E * (mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RX ** 2 - 0.2D1 * (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RX * FX + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * FX ** 2 + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RY ** 2 - 0.2D1 * (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RY * FY + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * FY ** 2 + 0.4D1 * (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * mu ** 2 * E) / (n * FX ** 2 + n * RY ** 2 + n * RX ** 2 + n * FY ** 2 + RX ** 2 + FX ** 2 + RY ** 2 + FY ** 2 - 0.2D1 * RX * FX - 0.2D1 * RY * FY - 0.2D1 * n * RX * FX - 0.2D1 * n * RY * FY)
+        cgret(2) = 0.2D1 * B ** (-n) * (RX - FX) * (-dble(2 ** (0.1D1 + n)) * mu ** 2 * E * (mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RX ** 2 - 0.2D1 * (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RX * FX + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * FX ** 2 + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RY ** 2 - 0.2D1 * (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * RY * FY + (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * FY ** 2 + 0.4D1 * (RX ** 2 - 0.2D1 * RX * FX + FX ** 2 + RY ** 2 - 0.2D1 * RY * FY + FY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * mu ** 2 * E) / (n * FX ** 2 + n * RY ** 2 + n * RX ** 2 + n * FY ** 2 + RX ** 2 + FX ** 2 + RY ** 2 + FY ** 2 - 0.2D1 * RX * FX - 0.2D1 * RY * FY - 0.2D1 * n * RX * FX - 0.2D1 * n * RY * FY)
         cgret(3) = -0.2D1 * bY * B ** (-n) * (dble(2 ** (0.1D1 + n)) * (mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * mu ** 2 * E - (bX ** 2 + bY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * bX ** 2 - (bX ** 2 + bY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * bY ** 2 - 0.4D1 * (bX ** 2 + bY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * mu ** 2 * E) / (bX ** 2 + bY ** 2 + n * bX ** 2 + n * bY ** 2)
         cgret(4) = -0.2D1 * bX * B ** (-n) * (dble(2 ** (0.1D1 + n)) * (mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * mu ** 2 * E - (bX ** 2 + bY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * bX ** 2 - (bX ** 2 + bY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * bY ** 2 - 0.4D1 * (bX ** 2 + bY ** 2 + 0.4D1 * mu ** 2 * E) ** (n / 0.2D1 - 0.1D1 / 0.2D1) * mu ** 2 * E) / (bX ** 2 + bY ** 2 + n * bX ** 2 + n * bY ** 2)
 !         print *, cgret
@@ -1404,7 +1387,7 @@ subroutine eismint_square_bay2(n, m, nr_p, p, nr_t, t, max_neighbors)
       call fem_imr(nr_p, p, nr_t, t, bed, thickness, basal_traction_coeff, grounded, nr_b, max_neighbors, m, b_s_all, nr_b_wne, b_wne, dirichlet_val, 0d0, 0d0, 5.7d-18, -1d0, -1d0, 0d0, 0d0)
 end subroutine
 
-subroutine ismip_hom_c2(n, m, nr_p, p, nr_t, t, max_neighbors)
+subroutine ismip_hom_c2(n, m, nr_p, p, nr_t, t, max_neighbors, ismip_size)
     implicit none
     integer, intent(in) :: n, m, nr_p, nr_t
     real(dp), dimension(nr_p, 2), intent(in) :: p ! List of points
@@ -1413,6 +1396,7 @@ subroutine ismip_hom_c2(n, m, nr_p, p, nr_t, t, max_neighbors)
     real(dp), dimension(nr_p) :: thickness ! List of points, m
     real(dp), dimension(nr_p) :: basal_traction_coeff ! m/(y*Pa^2)
     real(dp), dimension(nr_p) :: grounded ! grounded flag 1=grounded 0=floating
+    real(dp), intent(in) :: ismip_size
     integer, intent(in) :: max_neighbors
     integer, dimension(1) :: b
     integer :: pi, mi, ni
@@ -1423,9 +1407,9 @@ subroutine ismip_hom_c2(n, m, nr_p, p, nr_t, t, max_neighbors)
     thickness = 1000d0
     bed = 0d0
     do pi = 1, nr_p
-!       bed = 500d0 * sin(p(pi,1)*2d0*pic/ISMIP_SIZE) * sin(p(pi,2)*2d0*pic/ISMIP_SIZE)
+!       bed = 500d0 * sin(p(pi,1)*2d0*pic/ismip_size) * sin(p(pi,2)*2d0*pic/ismip_size)
 !       thickness = 1000d0 - bed
         basal_traction_coeff(pi) = 1000d0 + 1000d0 * dsin(p(pi,1)*2d0*pic/ismip_size) * dsin(p(pi,2)*2d0*pic/ismip_size)
     end do
-    call fem_imr(nr_p, p, nr_t, t, bed, thickness, basal_traction_coeff, grounded, 0, max_neighbors, 0, b, 0, b, b, dtan(0.1d0*2d0*pic/360d0), 0d0, 1d-16, ISMIP_SIZE * (DFLOAT(m)/DFLOAT(m+1)), ISMIP_SIZE * (DFLOAT(n)/DFLOAT(n+1)), ISMIP_SIZE/m, ISMIP_SIZE/n, 2)
+    call fem_imr(nr_p, p, nr_t, t, bed, thickness, basal_traction_coeff, grounded, 0, max_neighbors, 0, b, 0, b, b, dtan(0.1d0*2d0*pic/360d0), 0d0, 1d-16, ismip_size * (DFLOAT(m)/DFLOAT(m+1)), ismip_size * (DFLOAT(n)/DFLOAT(n+1)), ismip_size/m, ismip_size/n, 2)
 end subroutine
